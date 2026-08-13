@@ -8,6 +8,8 @@ import operator
 import webbrowser
 
 from system_info import get_system_info
+from app_launcher import ApplicationLauncher
+from weather import WeatherService
 
 
 class CommandProcessor:
@@ -16,6 +18,16 @@ class CommandProcessor:
     def __init__(self, speech_manager, user_name):
         self.speech = speech_manager
         self.user_name = user_name
+
+        # Application launcher
+        self.app_launcher = ApplicationLauncher(
+            speech_manager
+        )
+
+        # Weather service
+        self.weather = WeatherService(
+            speech_manager
+        )
 
     def tell_time(self):
         """Tell the current time."""
@@ -87,17 +99,7 @@ class CommandProcessor:
             )
 
     def calculate(self, expression):
-        """
-        Safely calculate a mathematical expression.
-
-        Supported operations:
-        Addition
-        Subtraction
-        Multiplication
-        Division
-        Power
-        Modulus
-        """
+        """Safely calculate a mathematical expression."""
 
         if not expression:
             self.speech.speak(
@@ -158,7 +160,6 @@ class CommandProcessor:
 
             result = evaluate(tree.body)
 
-            # Remove unnecessary .0 from whole numbers.
             if isinstance(result, float) and result.is_integer():
                 result = int(result)
 
@@ -180,6 +181,40 @@ class CommandProcessor:
             self.speech.speak(
                 "An error occurred while calculating."
             )
+
+    def get_weather(self, command):
+        """Process a weather command."""
+
+        city = command.strip()
+
+        if city.startswith("weather"):
+            city = city.replace(
+                "weather",
+                "",
+                1
+            ).strip()
+
+        if city.startswith("in "):
+            city = city.replace(
+                "in ",
+                "",
+                1
+            ).strip()
+
+        if city.startswith("for "):
+            city = city.replace(
+                "for ",
+                "",
+                1
+            ).strip()
+
+        if not city:
+            self.speech.speak(
+                "Please tell me the city."
+            )
+            return
+
+        self.weather.get_weather(city)
 
     def process(self, command):
         """
@@ -221,7 +256,8 @@ class CommandProcessor:
         # ---------------------------------------------------------------
 
         if any(
-            word in command
+            command == word
+            or command.startswith(word + " ")
             for word in [
                 "hello",
                 "hi",
@@ -232,6 +268,33 @@ class CommandProcessor:
                 f"Hello {self.user_name}. "
                 "How can I help you?"
             )
+
+            return True
+
+        # ---------------------------------------------------------------
+        # Weather
+        # ---------------------------------------------------------------
+
+        if (
+            command.startswith("weather")
+            or command.startswith("what is the weather")
+            or command.startswith("what's the weather")
+        ):
+            weather_command = command
+
+            weather_command = weather_command.replace(
+                "what is the weather",
+                "weather",
+                1
+            )
+
+            weather_command = weather_command.replace(
+                "what's the weather",
+                "weather",
+                1
+            )
+
+            self.get_weather(weather_command)
 
             return True
 
@@ -290,6 +353,24 @@ class CommandProcessor:
             ).strip()
 
             self.search_web(query)
+
+            return True
+
+        # ---------------------------------------------------------------
+        # Application launcher
+        # ---------------------------------------------------------------
+
+        if command.startswith("open "):
+
+            application = command.replace(
+                "open ",
+                "",
+                1
+            ).strip()
+
+            self.app_launcher.launch(
+                application
+            )
 
             return True
 
