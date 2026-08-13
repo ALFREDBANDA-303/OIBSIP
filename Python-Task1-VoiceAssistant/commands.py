@@ -2,14 +2,16 @@
 Command processing for the Voice Assistant.
 """
 
+import ast
 import datetime
+import operator
 import webbrowser
 
 from system_info import get_system_info
 
 
 class CommandProcessor:
-    """Process commands received from the user."""
+    """Process commands received by the Voice Assistant."""
 
     def __init__(self, speech_manager, user_name):
         self.speech = speech_manager
@@ -38,7 +40,7 @@ class CommandProcessor:
         )
 
     def search_web(self, query):
-        """Search the web."""
+        """Search the web using the default browser."""
 
         if not query:
             self.speech.speak(
@@ -55,63 +57,230 @@ class CommandProcessor:
             + query.replace(" ", "+")
         )
 
-        webbrowser.open(url)
+        try:
+            webbrowser.open(url)
+
+        except Exception:
+            self.speech.speak(
+                "I could not open the web browser."
+            )
 
     def show_system_info(self):
         """Read basic system information."""
 
-        information = get_system_info()
+        try:
+            information = get_system_info()
 
-        self.speech.speak(
-            f"You are using {information['Operating System']}."
-        )
+            self.speech.speak(
+                f"You are using "
+                f"{information['Operating System']}."
+            )
 
-        self.speech.speak(
-            f"Your Python version is "
-            f"{information['Python Version']}."
-        )
+            self.speech.speak(
+                f"Your Python version is "
+                f"{information['Python Version']}."
+            )
+
+        except Exception:
+            self.speech.speak(
+                "I could not retrieve the system information."
+            )
+
+    def calculate(self, expression):
+        """
+        Safely calculate a mathematical expression.
+
+        Supported operations:
+        Addition
+        Subtraction
+        Multiplication
+        Division
+        Power
+        Modulus
+        """
+
+        if not expression:
+            self.speech.speak(
+                "Please tell me the calculation."
+            )
+            return
+
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.Pow: operator.pow,
+            ast.Mod: operator.mod,
+        }
+
+        def evaluate(node):
+            """Safely evaluate a mathematical expression."""
+
+            if isinstance(node, ast.Constant):
+                if isinstance(node.value, (int, float)):
+                    return node.value
+
+                raise ValueError("Invalid number.")
+
+            if isinstance(node, ast.BinOp):
+                operation = operators.get(
+                    type(node.op)
+                )
+
+                if operation is None:
+                    raise ValueError(
+                        "Unsupported operation."
+                    )
+
+                return operation(
+                    evaluate(node.left),
+                    evaluate(node.right)
+                )
+
+            if isinstance(node, ast.UnaryOp):
+
+                if isinstance(node.op, ast.USub):
+                    return -evaluate(node.operand)
+
+                if isinstance(node.op, ast.UAdd):
+                    return evaluate(node.operand)
+
+            raise ValueError(
+                "Invalid mathematical expression."
+            )
+
+        try:
+            tree = ast.parse(
+                expression,
+                mode="eval"
+            )
+
+            result = evaluate(tree.body)
+
+            # Remove unnecessary .0 from whole numbers.
+            if isinstance(result, float) and result.is_integer():
+                result = int(result)
+
+            self.speech.speak(
+                f"The answer is {result}."
+            )
+
+        except ZeroDivisionError:
+            self.speech.speak(
+                "You cannot divide by zero."
+            )
+
+        except (ValueError, SyntaxError):
+            self.speech.speak(
+                "I could not calculate that expression."
+            )
+
+        except Exception:
+            self.speech.speak(
+                "An error occurred while calculating."
+            )
 
     def process(self, command):
         """
-        Process a command.
+        Process a recognized command.
 
         Returns:
             False when the assistant should stop.
-            True when it should continue.
+            True when the assistant should continue.
         """
 
         if not command:
             return True
 
-        if any(
-            word in command
-            for word in ["goodbye", "exit", "quit", "stop"]
-        ):
-            self.speech.speak(
-                f"Goodbye, {self.user_name}. Have a great day!"
-            )
-            return False
+        command = command.lower().strip()
+
+        # ---------------------------------------------------------------
+        # Exit commands
+        # ---------------------------------------------------------------
 
         if any(
             word in command
-            for word in ["hello", "hi", "hey"]
+            for word in [
+                "goodbye",
+                "exit",
+                "quit",
+                "stop",
+                "shutdown",
+            ]
         ):
             self.speech.speak(
-                f"Hello {self.user_name}. How can I help you?"
+                f"Goodbye, {self.user_name}. "
+                "Have a great day!"
             )
+
+            return False
+
+        # ---------------------------------------------------------------
+        # Greetings
+        # ---------------------------------------------------------------
+
+        if any(
+            word in command
+            for word in [
+                "hello",
+                "hi",
+                "hey",
+            ]
+        ):
+            self.speech.speak(
+                f"Hello {self.user_name}. "
+                "How can I help you?"
+            )
+
             return True
+
+        # ---------------------------------------------------------------
+        # Time
+        # ---------------------------------------------------------------
 
         if "time" in command:
             self.tell_time()
             return True
 
+        # ---------------------------------------------------------------
+        # Date
+        # ---------------------------------------------------------------
+
         if "date" in command:
             self.tell_date()
             return True
 
-        if "system information" in command:
+        # ---------------------------------------------------------------
+        # System information
+        # ---------------------------------------------------------------
+
+        if (
+            "system information" in command
+            or "system info" in command
+            or "computer information" in command
+        ):
             self.show_system_info()
             return True
+
+        # ---------------------------------------------------------------
+        # Calculator
+        # ---------------------------------------------------------------
+
+        if command.startswith("calculate"):
+            expression = command.replace(
+                "calculate",
+                "",
+                1
+            ).strip()
+
+            self.calculate(expression)
+
+            return True
+
+        # ---------------------------------------------------------------
+        # Web search
+        # ---------------------------------------------------------------
 
         if command.startswith("search"):
             query = command.replace(
@@ -121,7 +290,12 @@ class CommandProcessor:
             ).strip()
 
             self.search_web(query)
+
             return True
+
+        # ---------------------------------------------------------------
+        # Unsupported command
+        # ---------------------------------------------------------------
 
         self.speech.speak(
             "I am not sure how to help with that yet."
