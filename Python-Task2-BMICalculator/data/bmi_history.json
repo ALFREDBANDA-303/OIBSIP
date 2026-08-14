@@ -1,0 +1,14 @@
+[
+    {
+        "name": "alfred",
+        "weight": 67.0,
+        "height": 70.0,
+        "units": "metric",
+        "weight_kg": 67.0,
+        "height_cm": 70.0,
+        "bmi": 136.73,
+        "category": "Obesity",
+        "date": "2026-08-14",
+        "time": "15:44:10"
+    }
+]
