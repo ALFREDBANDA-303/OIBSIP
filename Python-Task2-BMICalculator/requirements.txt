@@ -1,0 +1,5 @@
+# Python-Task2-BMICalculator
+#
+# This project uses only the Python standard library
+# (json, csv, os, datetime, logging, unittest).
+# No external packages are required.
