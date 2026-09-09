@@ -1,0 +1,18 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Runtime-generated data (do not commit password history or logs)
+data/password_history.json
+logs/*.log
+
+# OS / editor files
+.DS_Store
+.vscode/
+.idea/
