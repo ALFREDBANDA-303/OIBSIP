@@ -1,0 +1,7 @@
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# tkinter is part of the Python standard library on most platforms.
+# On some Linux distributions it must be installed separately via the
+# system package manager, e.g.:
+#   sudo apt install python3-tk
